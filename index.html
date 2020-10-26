@@ -10,8 +10,8 @@
 </head>
 <body>
 
-<canvas id="myCanvas" width="480" height="320"></canvas>
-
+<canvas id="myCanvas" width="500" height="320"></canvas>
+<img id='background-img' src='background.jpg' style='display:none;'>
 <script>
 	// JavaScript code goes here
     var canvas = document.getElementById("myCanvas");
@@ -26,15 +26,17 @@
     var paddleX = (canvas.width - paddleWidth) / 2;
     var rightPressed = false;
     var leftPressed = false;
-    var brickRowCount = 3;
-    var brickColumnCount = 5;
-    var brickWidth = 75;
+    var brickRowCount = 5;
+    var brickColumnCount = 13;
+    var brickWidth = 30;
     var brickHeight = 20;
-    var brickPadding = 10;
+    var brickPadding = 5;
     var brickOffsetTop = 30;
-    var brickOffsetLeft = 30;
+    var brickOffsetLeft = 25;
     var score = 0;
     var lives = 3;
+    var maxScore = 0;
+    var rowMultiplier = 10;
 
     var bricks = [];
     for(var c=0; c<brickColumnCount; c++) {
@@ -45,16 +47,18 @@
     }
 
     function drawBricks() {
-        for(var c=0; c<brickColumnCount; c++) {
-            for(var r=0; r<brickRowCount; r++) {
+        maxScore = 0;
+        for(var c = 0; c < brickColumnCount; c++) {
+            for(var r = 0; r < brickRowCount; r++) {
+                maxScore += (brickRowCount - r) * rowMultiplier;
                 if(bricks[c][r].status == 1) {
-                    var brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
-                    var brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+                    var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft + r % 2 * 10;
+                    var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
                     bricks[c][r].x = brickX;
                     bricks[c][r].y = brickY;
                     ctx.beginPath();
                     ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                    ctx.fillStyle = "#0095DD";
+                    ctx.fillStyle = `rgb(${r * c + 200}, ${r * 5 + c * 5}, ${c * 10 + 25})`;
                     ctx.fill();
                     ctx.closePath();
                 }
@@ -65,7 +69,7 @@
     function drawBall() {
         ctx.beginPath();
         ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "#0095DD";
+        ctx.fillStyle = "#ffbad2";
         ctx.fill();
         ctx.closePath();
     }
@@ -73,14 +77,21 @@
     function drawPaddle() {
         ctx.beginPath();
         ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
-        ctx.fillStyle = "#0095DD";
+        ctx.fillStyle = "#000000";
         ctx.fill();
+        ctx.closePath();
+    }
+
+    function drawBackground() {
+        ctx.beginPath();
+        ctx.drawImage(document.getElementById('background-img'), 0, 0, 500, 320);
         ctx.closePath();
     }
 
     function draw() {
         // drawing code
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
         drawBricks();
         drawBall();
         drawPaddle();
@@ -165,8 +176,8 @@
                     if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
                         dy = -dy;
                         b.status = 0;
-                        score++;
-                        if(score == brickRowCount*brickColumnCount) {
+                        score += (brickRowCount - r) * rowMultiplier;
+                        if(score == maxScore) {
                             alert("YOU WIN, CONGRATULATIONS!");
                             document.location.reload();
                         }
