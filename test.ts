@@ -206,6 +206,18 @@ function drawBricks() {
     }
 }
 
+function drawInfo() {
+    // Draw remaining lives
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(`Lives: ${lives}`, canvas.width - 65, 20);
+
+    // Draw current score
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(`Score: ${score}`, 8, 20);
+}
+
 function checkCollisions() {
     // Check ball against paddle
     if (ball.y + ball.r > paddle.y) {
@@ -222,7 +234,7 @@ function checkCollisions() {
             const ballBounds = {left: ball.x - ball.r, right: ball.x + ball.r,
                                 top: ball.y - ball.r, bottom: ball.y + ball.r}; 
             if (current.status === 1) {
-                if (ball.x > current.x && ball.x < current.x + brickWidth && ball.y > current.y && ball.y < current.y + brickHeight) {
+                if (ballBounds.right > current.x && ballBounds.left < current.x + brickWidth && ballBounds.bottom > current.y && ballBounds.top < current.y + brickHeight) {
                     ball.velocity.y_component = -ball.velocity.y_component;
                     current.status = 0;
                     score += (brickRowCount - r) * rowMultiplier;
@@ -275,6 +287,9 @@ function drawGame() {
 
     // Draw bricks
     drawBricks();
+
+    // Draw user info
+    drawInfo();
 }
 
 function updateState() {
@@ -315,9 +330,13 @@ function keyDownHandler(e) {
 
 function keyUpHandler(e){
     if (e.key === 'Right' || e.key === 'ArrowRight') {
-        paddle.velocity = new Vector(0, 0);
+        if (paddle.velocity.x_component > 0) {
+            paddle.velocity = new Vector(0, 0);
+        }
     } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-        paddle.velocity = new Vector(0, 0);
+        if (paddle.velocity.x_component < 0) {
+            paddle.velocity = new Vector(0, 0);
+        }
     }
 }
 
