@@ -108,7 +108,50 @@ class Paddle {
     }
 }
 
+class Brick {
+    // Instance properties
+    width:number;
+    height:number;
+    position:Vector;
+    health:number;
+
+    // Constructor
+    constructor(width:number, height:number, x:number, y:number, startingHealth:number) {
+        this.width = width;
+        this.height = height;
+        this.position = new Vector(x, y);
+        this.health = startingHealth;
+    }
+
+    // Getters
+    get x():number {
+        return this.position.x_component;
+    }
+
+    get y():number {
+        return this.position.y_component;
+    }
+
+    get w():number {
+        return this.width;
+    }
+
+    get h():number {
+        return this.height;
+    }
+
+    get hp():number {
+        return this.health;
+    }
+
+    // State changers
+    editHealth(addition:number) {
+        this.health += addition;
+    }
+}
+
 // TODO: create brick class and refactor driver code accordingly.
+// TODO: consider writing draw functions inside of my classes that take ctx as a var?
 // TODO: WAY better collision detection is possible, and necessary.
 
 const canvas = <HTMLCanvasElement> document.getElementById('myCanvas');
@@ -130,7 +173,7 @@ for (let c = 0; c < brickColumnCount; c += 1) {
   for (let r = 0; r < brickRowCount; r += 1) {
     const brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft + ((r % 2) * 10);
     const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop + ((c % 2) * 5);
-    bricks[c][r] = { x: brickX, y: brickY, status: 1 };
+    bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1);
   }
 }
 
@@ -183,7 +226,7 @@ function drawBricks() {
     for (let c = 0; c < brickColumnCount; c += 1) {
         for (let r = 0; r < brickRowCount; r += 1) {
             maxScore += (brickRowCount - r) * rowMultiplier;
-            if (bricks[c][r].status === 1) {
+            if (bricks[c][r].hp === 1) {
             // Draw border
             ctx.beginPath();
             ctx.rect(bricks[c][r].x - 1, bricks[c][r].y - 1, brickWidth + 2, brickHeight + 2);
@@ -233,10 +276,10 @@ function checkCollisions() {
             const current = bricks[c][r];
             const ballBounds = {left: ball.x - ball.r, right: ball.x + ball.r,
                                 top: ball.y - ball.r, bottom: ball.y + ball.r}; 
-            if (current.status === 1) {
+            if (current.hp === 1) {
                 if (ballBounds.right > current.x && ballBounds.left < current.x + brickWidth && ballBounds.bottom > current.y && ballBounds.top < current.y + brickHeight) {
                     ball.velocity.y_component = -ball.velocity.y_component;
-                    current.status = 0;
+                    current.editHealth(-1);
                     score += (brickRowCount - r) * rowMultiplier;
                 }
             }

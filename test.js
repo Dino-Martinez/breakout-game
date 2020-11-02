@@ -118,7 +118,58 @@ var Paddle = /** @class */ (function () {
     };
     return Paddle;
 }());
+var Brick = /** @class */ (function () {
+    // Constructor
+    function Brick(width, height, x, y, startingHealth) {
+        this.width = width;
+        this.height = height;
+        this.position = new Vector(x, y);
+        this.health = startingHealth;
+    }
+    Object.defineProperty(Brick.prototype, "x", {
+        // Getters
+        get: function () {
+            return this.position.x_component;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(Brick.prototype, "y", {
+        get: function () {
+            return this.position.y_component;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(Brick.prototype, "w", {
+        get: function () {
+            return this.width;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(Brick.prototype, "h", {
+        get: function () {
+            return this.height;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(Brick.prototype, "hp", {
+        get: function () {
+            return this.health;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    // State changers
+    Brick.prototype.editHealth = function (addition) {
+        this.health += addition;
+    };
+    return Brick;
+}());
 // TODO: create brick class and refactor driver code accordingly.
+// TODO: consider writing draw functions inside of my classes that take ctx as a var?
 // TODO: WAY better collision detection is possible, and necessary.
 var canvas = document.getElementById('myCanvas');
 var ctx = canvas.getContext('2d');
@@ -139,7 +190,7 @@ for (var c = 0; c < brickColumnCount; c += 1) {
     for (var r = 0; r < brickRowCount; r += 1) {
         var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft + ((r % 2) * 10);
         var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop + ((c % 2) * 5);
-        bricks[c][r] = { x: brickX, y: brickY, status: 1 };
+        bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1);
     }
 }
 var maxScore;
@@ -185,7 +236,7 @@ function drawBricks() {
     for (var c = 0; c < brickColumnCount; c += 1) {
         for (var r = 0; r < brickRowCount; r += 1) {
             maxScore += (brickRowCount - r) * rowMultiplier;
-            if (bricks[c][r].status === 1) {
+            if (bricks[c][r].hp === 1) {
                 // Draw border
                 ctx.beginPath();
                 ctx.rect(bricks[c][r].x - 1, bricks[c][r].y - 1, brickWidth + 2, brickHeight + 2);
@@ -231,10 +282,10 @@ function checkCollisions() {
             var current = bricks[c][r];
             var ballBounds = { left: ball.x - ball.r, right: ball.x + ball.r,
                 top: ball.y - ball.r, bottom: ball.y + ball.r };
-            if (current.status === 1) {
+            if (current.hp === 1) {
                 if (ballBounds.right > current.x && ballBounds.left < current.x + brickWidth && ballBounds.bottom > current.y && ballBounds.top < current.y + brickHeight) {
                     ball.velocity.y_component = -ball.velocity.y_component;
-                    current.status = 0;
+                    current.editHealth(-1);
                     score += (brickRowCount - r) * rowMultiplier;
                 }
             }
