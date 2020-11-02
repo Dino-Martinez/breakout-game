@@ -21,8 +21,15 @@ class Vector{
 }
 
 
+/* This interface will serve as the base class for all renderable objects */
+interface RenderableObject {
+    position:Vector;
+
+    draw(ctx:CanvasRenderingContext2D);
+}
+
 /* This class will represent the ball that appears on the screen */
-class Ball {
+class Ball implements RenderableObject{
     // Instance properties
     position:Vector;
     velocity:Vector;
@@ -60,10 +67,28 @@ class Ball {
         this.position.y_component += this.velocity.y_component;
         return this.position;
     }
+    
+    // Display function
+    draw(ctx:CanvasRenderingContext2D) {
+        // Draw border
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r + 1, 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+        ctx.closePath();
+
+        // Draw ball
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        // ctx.fillStyle = colorList[colorIndex % colorList.length];
+        ctx.fillStyle = this.c;
+        ctx.fill();
+        ctx.closePath();
+    }
 }
 
 /* This class will represent our player's paddle, which they can use to hit the ball */
-class Paddle {
+class Paddle implements RenderableObject{
     // Instance properties
     position:Vector;
     velocity:Vector;
@@ -106,21 +131,40 @@ class Paddle {
         this.size.y_component = height;
         return this.size;
     }
+
+    // Display function
+    draw(ctx:CanvasRenderingContext2D) {
+        // Draw border
+        ctx.beginPath();
+        ctx.rect(paddle.x - 1, canvas.height - paddle.h - 3, paddle.l + 2, paddle.h + 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        ctx.closePath();
+
+        // Draw Paddle
+        ctx.beginPath();
+        ctx.rect(paddle.x, canvas.height - paddle.h - 2, paddle.l, paddle.h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.closePath();
+    }
 }
 
-class Brick {
+class Brick implements RenderableObject{
     // Instance properties
     width:number;
     height:number;
     position:Vector;
     health:number;
+    matrixLocation:Array<number>;
 
     // Constructor
-    constructor(width:number, height:number, x:number, y:number, startingHealth:number) {
+    constructor(width:number, height:number, x:number, y:number, startingHealth:number,matrixLocation:Array<number>) {
         this.width = width;
         this.height = height;
         this.position = new Vector(x, y);
         this.health = startingHealth;
+        this.matrixLocation = matrixLocation;
     }
 
     // Getters
@@ -148,9 +192,31 @@ class Brick {
     editHealth(addition:number) {
         this.health += addition;
     }
+
+    // Display function
+    draw(ctx:CanvasRenderingContext2D) {
+        // Draw border
+        ctx.beginPath();
+        ctx.rect(this.x - 1, this.y - 1, brickWidth + 2, brickHeight + 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        ctx.closePath();
+
+        // Draw brick
+        const c:number = this.matrixLocation[0];
+        const r:number = this.matrixLocation[1];
+        ctx.beginPath();
+        ctx.rect(this.x, this.y, brickWidth, brickHeight);
+        if (c % 2 === 0) {
+            ctx.fillStyle = `rgb(${r * c + 200}, ${r * 8 + c * 8}, ${c * 10 + c * 10})`;
+        } else {
+            ctx.fillStyle = `rgb(${r * c}, ${r * 15 + c * 15}, ${200})`;
+        }
+        ctx.fill();
+        ctx.closePath();
+    }
 }
 
-// TODO: create brick class and refactor driver code accordingly.
 // TODO: consider writing draw functions inside of my classes that take ctx as a var?
 // TODO: WAY better collision detection is possible, and necessary.
 
@@ -167,13 +233,14 @@ const brickPadding:number = 10;
 const brickOffsetTop:number = 30;
 const brickOffsetLeft:number = 10;
 const colorList = ['#ffbad2', '#dfd', '#ffe393', '#aecaef'];
-const bricks = [];
+const bricks:Array<Array<Brick>> = [];
 for (let c = 0; c < brickColumnCount; c += 1) {
   bricks[c] = [];
   for (let r = 0; r < brickRowCount; r += 1) {
     const brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft + ((r % 2) * 10);
     const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop + ((c % 2) * 5);
-    bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1);
+    const matrixLocation:Array<number> = [c, r];
+    bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1, matrixLocation);
   }
 }
 
@@ -188,62 +255,13 @@ function drawBackground() {
     ctx.closePath();
 }
 
-function drawBall() {
-    // Draw border
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r + 1, 0, Math.PI * 2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.closePath();
-
-    // Draw ball
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    // ctx.fillStyle = colorList[colorIndex % colorList.length];
-    ctx.fillStyle = ball.c;
-    ctx.fill();
-    ctx.closePath();
-}
-
-function drawPaddle() {
-    // Draw border
-    ctx.beginPath();
-    ctx.rect(paddle.x - 1, canvas.height - paddle.h - 3, paddle.l + 2, paddle.h + 2);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
-    ctx.closePath();
-
-    // Draw Paddle
-    ctx.beginPath();
-    ctx.rect(paddle.x, canvas.height - paddle.h - 2, paddle.l, paddle.h);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.closePath();
-}
-
 function drawBricks() {
     maxScore = 0;
     for (let c = 0; c < brickColumnCount; c += 1) {
         for (let r = 0; r < brickRowCount; r += 1) {
             maxScore += (brickRowCount - r) * rowMultiplier;
             if (bricks[c][r].hp === 1) {
-            // Draw border
-            ctx.beginPath();
-            ctx.rect(bricks[c][r].x - 1, bricks[c][r].y - 1, brickWidth + 2, brickHeight + 2);
-            ctx.fillStyle = '#000000';
-            ctx.fill();
-            ctx.closePath();
-
-            // Draw brick
-            ctx.beginPath();
-            ctx.rect(bricks[c][r].x, bricks[c][r].y, brickWidth, brickHeight);
-            if (c % 2 === 0) {
-                ctx.fillStyle = `rgb(${r * c + 200}, ${r * 8 + c * 8}, ${c * 10 + c * 10})`;
-            } else {
-                ctx.fillStyle = `rgb(${r * c}, ${r * 15 + c * 15}, ${200})`;
-            }
-            ctx.fill();
-            ctx.closePath();
+                bricks[c][r].draw(ctx);
             }
         }
     }
@@ -323,10 +341,10 @@ function drawGame() {
     drawBackground();
 
     // Draw ball
-    drawBall();
+    ball.draw(ctx);
 
     // Draw paddle
-    drawPaddle();
+    paddle.draw(ctx);
 
     // Draw bricks
     drawBricks();

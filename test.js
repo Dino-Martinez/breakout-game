@@ -66,6 +66,22 @@ var Ball = /** @class */ (function () {
         this.position.y_component += this.velocity.y_component;
         return this.position;
     };
+    // Display function
+    Ball.prototype.draw = function (ctx) {
+        // Draw border
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r + 1, 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+        ctx.closePath();
+        // Draw ball
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        // ctx.fillStyle = colorList[colorIndex % colorList.length];
+        ctx.fillStyle = this.c;
+        ctx.fill();
+        ctx.closePath();
+    };
     return Ball;
 }());
 /* This class will represent our player's paddle, which they can use to hit the ball */
@@ -116,15 +132,31 @@ var Paddle = /** @class */ (function () {
         this.size.y_component = height;
         return this.size;
     };
+    // Display function
+    Paddle.prototype.draw = function (ctx) {
+        // Draw border
+        ctx.beginPath();
+        ctx.rect(paddle.x - 1, canvas.height - paddle.h - 3, paddle.l + 2, paddle.h + 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        ctx.closePath();
+        // Draw Paddle
+        ctx.beginPath();
+        ctx.rect(paddle.x, canvas.height - paddle.h - 2, paddle.l, paddle.h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.closePath();
+    };
     return Paddle;
 }());
 var Brick = /** @class */ (function () {
     // Constructor
-    function Brick(width, height, x, y, startingHealth) {
+    function Brick(width, height, x, y, startingHealth, matrixLocation) {
         this.width = width;
         this.height = height;
         this.position = new Vector(x, y);
         this.health = startingHealth;
+        this.matrixLocation = matrixLocation;
     }
     Object.defineProperty(Brick.prototype, "x", {
         // Getters
@@ -166,9 +198,30 @@ var Brick = /** @class */ (function () {
     Brick.prototype.editHealth = function (addition) {
         this.health += addition;
     };
+    // Display function
+    Brick.prototype.draw = function (ctx) {
+        // Draw border
+        ctx.beginPath();
+        ctx.rect(this.x - 1, this.y - 1, brickWidth + 2, brickHeight + 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        ctx.closePath();
+        // Draw brick
+        var c = this.matrixLocation[0];
+        var r = this.matrixLocation[1];
+        ctx.beginPath();
+        ctx.rect(this.x, this.y, brickWidth, brickHeight);
+        if (c % 2 === 0) {
+            ctx.fillStyle = "rgb(" + (r * c + 200) + ", " + (r * 8 + c * 8) + ", " + (c * 10 + c * 10) + ")";
+        }
+        else {
+            ctx.fillStyle = "rgb(" + r * c + ", " + (r * 15 + c * 15) + ", " + 200 + ")";
+        }
+        ctx.fill();
+        ctx.closePath();
+    };
     return Brick;
 }());
-// TODO: create brick class and refactor driver code accordingly.
 // TODO: consider writing draw functions inside of my classes that take ctx as a var?
 // TODO: WAY better collision detection is possible, and necessary.
 var canvas = document.getElementById('myCanvas');
@@ -190,7 +243,8 @@ for (var c = 0; c < brickColumnCount; c += 1) {
     for (var r = 0; r < brickRowCount; r += 1) {
         var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft + ((r % 2) * 10);
         var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop + ((c % 2) * 5);
-        bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1);
+        var matrixLocation = [c, r];
+        bricks[c][r] = new Brick(brickWidth, brickHeight, brickX, brickY, 1, matrixLocation);
     }
 }
 var maxScore;
@@ -202,58 +256,13 @@ function drawBackground() {
     ctx.drawImage(document.getElementById('background-img'), 0, 0, 500, 320);
     ctx.closePath();
 }
-function drawBall() {
-    // Draw border
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r + 1, 0, Math.PI * 2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.closePath();
-    // Draw ball
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    // ctx.fillStyle = colorList[colorIndex % colorList.length];
-    ctx.fillStyle = ball.c;
-    ctx.fill();
-    ctx.closePath();
-}
-function drawPaddle() {
-    // Draw border
-    ctx.beginPath();
-    ctx.rect(paddle.x - 1, canvas.height - paddle.h - 3, paddle.l + 2, paddle.h + 2);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
-    ctx.closePath();
-    // Draw Paddle
-    ctx.beginPath();
-    ctx.rect(paddle.x, canvas.height - paddle.h - 2, paddle.l, paddle.h);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.closePath();
-}
 function drawBricks() {
     maxScore = 0;
     for (var c = 0; c < brickColumnCount; c += 1) {
         for (var r = 0; r < brickRowCount; r += 1) {
             maxScore += (brickRowCount - r) * rowMultiplier;
             if (bricks[c][r].hp === 1) {
-                // Draw border
-                ctx.beginPath();
-                ctx.rect(bricks[c][r].x - 1, bricks[c][r].y - 1, brickWidth + 2, brickHeight + 2);
-                ctx.fillStyle = '#000000';
-                ctx.fill();
-                ctx.closePath();
-                // Draw brick
-                ctx.beginPath();
-                ctx.rect(bricks[c][r].x, bricks[c][r].y, brickWidth, brickHeight);
-                if (c % 2 === 0) {
-                    ctx.fillStyle = "rgb(" + (r * c + 200) + ", " + (r * 8 + c * 8) + ", " + (c * 10 + c * 10) + ")";
-                }
-                else {
-                    ctx.fillStyle = "rgb(" + r * c + ", " + (r * 15 + c * 15) + ", " + 200 + ")";
-                }
-                ctx.fill();
-                ctx.closePath();
+                bricks[c][r].draw(ctx);
             }
         }
     }
@@ -324,9 +333,9 @@ function drawGame() {
     // Draw background
     drawBackground();
     // Draw ball
-    drawBall();
+    ball.draw(ctx);
     // Draw paddle
-    drawPaddle();
+    paddle.draw(ctx);
     // Draw bricks
     drawBricks();
     // Draw user info
