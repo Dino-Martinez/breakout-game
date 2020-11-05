@@ -14,6 +14,9 @@ interface RenderableObject {
     // to move our object based on its velocity (assume dt = 1)
     move():void;
 
+    // Need to allow for changing colors
+    changeColor(new_color:string):void;
+
     // Check for collision between this object and a specified object
     // Based on both objects positions and sizes
     checkCollision(target:RenderableObject):boolean;
@@ -92,11 +95,15 @@ class Sprite implements RenderableObject {
     }
 
     // Modifiers
-    updatePosition(delta:Vector2) {
+    updatePosition(delta:Vector2):Vector2 {
         const new_x = this.x + delta.x;
         const new_y = this.y + delta.y;
         this.position.update(new_x, new_y);
         return this.position;
+    }
+
+    changeColor(new_color:string):void {
+        this.color = new_color;
     }
 
     // Check for collisions
@@ -167,7 +174,7 @@ class Ball extends Sprite {
     }
 
     // Override draw function for ball to draw an arc instead of a rectangle
-    draw(ctx:CanvasRenderingContext2D) {
+    draw(ctx:CanvasRenderingContext2D):void {
         // Draw border
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.width + 1, 0, Math.PI * 2);
@@ -201,121 +208,153 @@ class Brick extends Sprite {
         this.hp = starting_health;
     }
 
-    get health() {
+    get health():number {
         return this.hp;
     }
 
     // Modifiers
-    reduceHealth(reduction:number) {
+    reduceHealth(reduction:number):void {
         this.hp -= reduction;
     }
 }
 
-const canvas = <HTMLCanvasElement> document.getElementById('myCanvas');
-const ctx = canvas.getContext('2d');
-const paddle = new Paddle(canvas.width / 2 - 50, canvas.height - 12, 100, 10, 0, 0, "#ffffee");
-const ball = new Ball(canvas.width / 2 - 5, canvas.height - 25, 10, 2, 2, "#ffbad2");
-const bricks:Array<Array<Brick>> = [];
-const rows:number = 4;
-const columns:number = 12;
+class BrickWall {
+    // Instance properties
+    bricks:Array<Array<Brick>>;
+    rows:number;
+    columns:number;
 
-let lives:number = 1;
-
-// Create invisible boxes on the edges of the screen to check boundaries 
-const canvasBounds:Array<Sprite> = [
-                                    new Sprite(-100, -100, 100, canvas.height + 100,'none'),
-                                    new Sprite(-100, -100, canvas.width + 100, 100,'none'),
-                                    new Sprite(canvas.width, -100, 100, canvas.height + 100,'none'),
-                                    new Sprite(-100, canvas.height, canvas.width + 100, 100, 'none')
-                                ];
-
-function initializeBricks() {
-    const brickBounds:Array<number> = [25,25, canvas.width - 25, canvas.height / 2 - 25];
-    const padding = 10;
-    const width = (brickBounds[2] - brickBounds[0]) / columns - padding;
-    const height = (brickBounds[3] - brickBounds[1]) / rows - padding;
-    for (let c = 0; c < columns; c += 1) {
-        bricks[c] = [];
-        for (let r = 0; r < rows; r += 1) {
-            const x_pos = (c * (width + padding)) + brickBounds[0] + ((r % 2) * 10);
-            const y_pos = (r * (height + padding)) + brickBounds[1] + ((c % 2) * 5);
-            bricks[c][r] = new Brick(x_pos, y_pos, width, height, 0, 0, "#ddffdd", 1);
-        }
+    constructor(rows:number = 4, columns:number = 12, bounds:Array<number>) {
+        this.rows = rows;
+        this.columns = columns;
+        this.bricks = [];
+        this.initializeBricks(bounds);
     }
-}
 
-function drawBricks() {
-    for (let c = 0; c < columns; c += 1) {
-        for (let r = 0; r < rows; r += 1) {
-            if (bricks[c][r].health > 0) {
-                bricks[c][r].draw(ctx);
+    initializeBricks(brickBounds:Array<number>):void {
+        const padding:number = 10;
+        const width:number = (brickBounds[2] - brickBounds[0]) / this.columns - padding;
+        const height:number = (brickBounds[3] - brickBounds[1]) / this.rows - padding;
+        for (let c = 0; c < this.columns; c += 1) {
+            this.bricks[c] = [];
+            for (let r = 0; r < this.rows; r += 1) {
+                const x_pos:number = (c * (width + padding)) + brickBounds[0] + ((r % 2) * 10);
+                const y_pos:number = (r * (height + padding)) + brickBounds[1] + ((c % 2) * 5);
+                this.bricks[c][r] = new Brick(x_pos, y_pos, width, height, 0, 0, 'rgba(0,0,0,0)', 2);
             }
         }
     }
-}
 
-function run() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ball.draw(ctx);
-    paddle.draw(ctx);
-    drawBricks();
-    if (ball.checkCollision(paddle) || ball.checkCollision(canvasBounds[1]) ) {
-        ball.velocity.y_component = -ball.velocity.y;
-    }
-    if (ball.checkCollision(canvasBounds[0]) || ball.checkCollision(canvasBounds[2])) {
-        ball.velocity.x_component = -ball.velocity.x;
-    }
-    if (ball.checkCollision(canvasBounds[3])) {
-        lives -= 1;
-    }
-    bricks.forEach((row) => {
-        row.forEach((brick) => {
-            if (brick.health > 0) {
-                if (ball.checkCollision(brick)) {
-                    ball.velocity.y_component = -ball.velocity.y;
-                    brick.reduceHealth(1);
+    drawBricks(ctx:CanvasRenderingContext2D):void {
+        for (let c = 0; c < this.columns; c += 1) {
+            for (let r = 0; r < this.rows; r += 1) {
+                if (this.bricks[c][r].health > 0) {
+                    const color:string = `rgba(${c * r + 150},${ c * 25},${r * r * 25},${this.bricks[c][r].health/2})`;
+                    if (this.bricks[c][r].color != color) {
+                        this.bricks[c][r].changeColor(color);
+                    }
+                    this.bricks[c][r].draw(ctx);
                 }
             }
+        }
+    }
+
+    checkCollision(ball:Ball):void {
+        this.bricks.forEach((row) => {
+            row.forEach((brick) => {
+                if (brick.health > 0) {
+                    if (ball.checkCollision(brick)) {
+                        ball.velocity.y_component = (ball.velocity.y < 3) ? -1.1 * ball.velocity.y : 3;
+                        ball.velocity.x_component = (ball.velocity.x < 3) ? 1.08 * ball.velocity.x : 3;
+                        brick.reduceHealth(1);
+                    }
+                }
+            });
         });
-    });
-    if (paddle.checkCollision(canvasBounds[0])) {
-        paddle.velocity.x_component = 0;
-        paddle.position.x_component = 10;
-    }
-    if (paddle.checkCollision(canvasBounds[2])) {
-        paddle.velocity.x_component = 0;
-        paddle.position.x_component = canvas.width - 105;
-    }
-    ball.move();
-    paddle.move();
-    console.log(paddle.velocity.x);
-    if (lives > 0) {
-        requestAnimationFrame(run);
     }
 }
 
-function keyDownHandler(e) {
-    if (e.key === 'Right' || e.key === 'ArrowRight') {
-        paddle.velocity = new Vector2(7, 0);
-    } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-        paddle.velocity = new Vector2(-7, 0);
-    }
-}
+class BreakoutGame {
+    // Instance properties
+    canvas:HTMLCanvasElement;
+    ctx:CanvasRenderingContext2D;
+    canvasBounds:Array<Sprite>;
+    paddle:Paddle;
+    ball:Ball;
+    brickWall:BrickWall;
+    lives:number;
 
-function keyUpHandler(e){
-    if (e.key === 'Right' || e.key === 'ArrowRight') {
-        if (paddle.velocity.x > 0) {
-            paddle.velocity = new Vector2(0, 0);
+    constructor() {
+        this.canvas = <HTMLCanvasElement> document.getElementById('myCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.paddle = new Paddle(this.canvas.width / 2 - 50, this.canvas.height - 12, 100, 10, 0, 0, "#ffffee");
+        this.ball = new Ball(this.canvas.width / 2 - 5, this.canvas.height - 25, 10, 2, 2, "#ffbad2");
+        const brickBounds:Array<number> = [25,25, this.canvas.width - 25, this.canvas.height / 2 - 25];
+        this.brickWall = new BrickWall(4, 12, brickBounds);
+        this.canvasBounds = [
+            new Sprite(-100, -100, 100, this.canvas.height + 100,'none'),
+            new Sprite(-100, -100, this.canvas.width + 100, 100,'none'),
+            new Sprite(this.canvas.width, -100, 100, this.canvas.height + 100,'none'),
+            new Sprite(-100, this.canvas.height, this.canvas.width + 100, 100, 'none')
+        ];
+        this.lives = 1;
+    }
+    
+    // Note: lamba syntax is required here to make sure the 'this' context persists through animation frames
+    run = ():void => {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ball.draw(this.ctx);
+        this.paddle.draw(this.ctx);
+        this.brickWall.drawBricks(this.ctx);
+
+        if (this.ball.checkCollision(this.paddle) || this.ball.checkCollision(this.canvasBounds[1]) ) {
+            this.ball.velocity.y_component = -this.ball.velocity.y;
         }
-    } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-        if (paddle.velocity.x < 0) {
-            paddle.velocity = new Vector2(0, 0);
+        if (this.ball.checkCollision(this.canvasBounds[0]) || this.ball.checkCollision(this.canvasBounds[2])) {
+            this.ball.velocity.x_component = -this.ball.velocity.x;
+        }
+        if (this.ball.checkCollision(this.canvasBounds[3])) {
+            this.lives -= 1;
+        }
+        this.brickWall.checkCollision(this.ball);
+        if (this.paddle.checkCollision(this.canvasBounds[0])) {
+            this.paddle.velocity.x_component = 0;
+            this.paddle.position.x_component = 10;
+        }
+        if (this.paddle.checkCollision(this.canvasBounds[2])) {
+            this.paddle.velocity.x_component = 0;
+            this.paddle.position.x_component = this.canvas.width - 105;
+        }
+        this.ball.move();
+        this.paddle.move();
+        if (this.lives > 0) {
+            requestAnimationFrame(this.run);
+        }
+    }
+
+
+    keyDownHandler = (e:KeyboardEvent):void => {
+        if (e.key === 'Right' || e.key === 'ArrowRight') {
+            this.paddle.velocity = new Vector2(7, 0);
+        } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+            this.paddle.velocity = new Vector2(-7, 0);
+        }
+    }
+
+    keyUpHandler = (e:KeyboardEvent):void => {
+        if (e.key === 'Right' || e.key === 'ArrowRight') {
+            if (this.paddle.velocity.x > 0) {
+                this.paddle.velocity = new Vector2(0, 0);
+            }
+        } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+            if (this.paddle.velocity.x < 0) {
+                this.paddle.velocity = new Vector2(0, 0);
+            }
         }
     }
 }
 
-document.addEventListener('keydown', keyDownHandler, false);
-document.addEventListener('keyup', keyUpHandler, false);
-
-initializeBricks();
-run();
+const game:BreakoutGame = new BreakoutGame();
+document.addEventListener('keydown', game.keyDownHandler, false);
+document.addEventListener('keyup', game.keyUpHandler, false);
+game.run();

@@ -98,6 +98,9 @@ var Sprite = /** @class */ (function () {
         this.position.update(new_x, new_y);
         return this.position;
     };
+    Sprite.prototype.changeColor = function (new_color) {
+        this.color = new_color;
+    };
     // Check for collisions
     Sprite.prototype.checkCollision = function (target) {
         if (this.position.x + this.size.x > target.position.x && this.position.x - 8 < target.position.x + target.size.x) {
@@ -193,105 +196,126 @@ var Brick = /** @class */ (function (_super) {
     };
     return Brick;
 }(Sprite));
-var canvas = document.getElementById('myCanvas');
-var ctx = canvas.getContext('2d');
-var paddle = new Paddle(canvas.width / 2 - 50, canvas.height - 12, 100, 10, 0, 0, "#ffffee");
-var ball = new Ball(canvas.width / 2 - 5, canvas.height - 25, 10, 2, 2, "#ffbad2");
-var bricks = [];
-var rows = 4;
-var columns = 12;
-var lives = 1;
-// Create invisible boxes on the edges of the screen to check boundaries 
-var canvasBounds = [
-    new Sprite(-100, -100, 100, canvas.height + 100, 'none'),
-    new Sprite(-100, -100, canvas.width + 100, 100, 'none'),
-    new Sprite(canvas.width, -100, 100, canvas.height + 100, 'none'),
-    new Sprite(-100, canvas.height, canvas.width + 100, 100, 'none')
-];
-function initializeBricks() {
-    var brickBounds = [25, 25, canvas.width - 25, canvas.height / 2 - 25];
-    var padding = 10;
-    var width = (brickBounds[2] - brickBounds[0]) / columns - padding;
-    var height = (brickBounds[3] - brickBounds[1]) / rows - padding;
-    for (var c = 0; c < columns; c += 1) {
-        bricks[c] = [];
-        for (var r = 0; r < rows; r += 1) {
-            var x_pos = (c * (width + padding)) + brickBounds[0] + ((r % 2) * 10);
-            var y_pos = (r * (height + padding)) + brickBounds[1] + ((c % 2) * 5);
-            bricks[c][r] = new Brick(x_pos, y_pos, width, height, 0, 0, "#ddffdd", 1);
-        }
+var BrickWall = /** @class */ (function () {
+    function BrickWall(rows, columns, bounds) {
+        if (rows === void 0) { rows = 4; }
+        if (columns === void 0) { columns = 12; }
+        this.rows = rows;
+        this.columns = columns;
+        this.bricks = [];
+        this.initializeBricks(bounds);
     }
-}
-function drawBricks() {
-    for (var c = 0; c < columns; c += 1) {
-        for (var r = 0; r < rows; r += 1) {
-            if (bricks[c][r].health > 0) {
-                bricks[c][r].draw(ctx);
+    BrickWall.prototype.initializeBricks = function (brickBounds) {
+        var padding = 10;
+        var width = (brickBounds[2] - brickBounds[0]) / this.columns - padding;
+        var height = (brickBounds[3] - brickBounds[1]) / this.rows - padding;
+        for (var c = 0; c < this.columns; c += 1) {
+            this.bricks[c] = [];
+            for (var r = 0; r < this.rows; r += 1) {
+                var x_pos = (c * (width + padding)) + brickBounds[0] + ((r % 2) * 10);
+                var y_pos = (r * (height + padding)) + brickBounds[1] + ((c % 2) * 5);
+                this.bricks[c][r] = new Brick(x_pos, y_pos, width, height, 0, 0, 'rgba(0,0,0,0)', 2);
             }
         }
-    }
-}
-function run() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ball.draw(ctx);
-    paddle.draw(ctx);
-    drawBricks();
-    if (ball.checkCollision(paddle) || ball.checkCollision(canvasBounds[1])) {
-        ball.velocity.y_component = -ball.velocity.y;
-    }
-    if (ball.checkCollision(canvasBounds[0]) || ball.checkCollision(canvasBounds[2])) {
-        ball.velocity.x_component = -ball.velocity.x;
-    }
-    if (ball.checkCollision(canvasBounds[3])) {
-        lives -= 1;
-    }
-    bricks.forEach(function (row) {
-        row.forEach(function (brick) {
-            if (brick.health > 0) {
-                if (ball.checkCollision(brick)) {
-                    ball.velocity.y_component = -ball.velocity.y;
-                    brick.reduceHealth(1);
+    };
+    BrickWall.prototype.drawBricks = function (ctx) {
+        for (var c = 0; c < this.columns; c += 1) {
+            for (var r = 0; r < this.rows; r += 1) {
+                if (this.bricks[c][r].health > 0) {
+                    var color = "rgba(" + (c * r + 150) + "," + c * 25 + "," + r * r * 25 + "," + this.bricks[c][r].health / 2 + ")";
+                    if (this.bricks[c][r].color != color) {
+                        this.bricks[c][r].changeColor(color);
+                    }
+                    this.bricks[c][r].draw(ctx);
                 }
             }
+        }
+    };
+    BrickWall.prototype.checkCollision = function (ball) {
+        this.bricks.forEach(function (row) {
+            row.forEach(function (brick) {
+                if (brick.health > 0) {
+                    if (ball.checkCollision(brick)) {
+                        ball.velocity.y_component = (ball.velocity.y < 3) ? -1.1 * ball.velocity.y : 3;
+                        ball.velocity.x_component = (ball.velocity.x < 3) ? 1.08 * ball.velocity.x : 3;
+                        brick.reduceHealth(1);
+                    }
+                }
+            });
         });
-    });
-    if (paddle.checkCollision(canvasBounds[0])) {
-        paddle.velocity.x_component = 0;
-        paddle.position.x_component = 10;
+    };
+    return BrickWall;
+}());
+var BreakoutGame = /** @class */ (function () {
+    function BreakoutGame() {
+        var _this = this;
+        // Note: lamba syntax is required here to make sure the 'this' context persists through animation frames
+        this.run = function () {
+            _this.ctx.clearRect(0, 0, _this.canvas.width, _this.canvas.height);
+            _this.ball.draw(_this.ctx);
+            _this.paddle.draw(_this.ctx);
+            _this.brickWall.drawBricks(_this.ctx);
+            if (_this.ball.checkCollision(_this.paddle) || _this.ball.checkCollision(_this.canvasBounds[1])) {
+                _this.ball.velocity.y_component = -_this.ball.velocity.y;
+            }
+            if (_this.ball.checkCollision(_this.canvasBounds[0]) || _this.ball.checkCollision(_this.canvasBounds[2])) {
+                _this.ball.velocity.x_component = -_this.ball.velocity.x;
+            }
+            if (_this.ball.checkCollision(_this.canvasBounds[3])) {
+                _this.lives -= 1;
+            }
+            _this.brickWall.checkCollision(_this.ball);
+            if (_this.paddle.checkCollision(_this.canvasBounds[0])) {
+                _this.paddle.velocity.x_component = 0;
+                _this.paddle.position.x_component = 10;
+            }
+            if (_this.paddle.checkCollision(_this.canvasBounds[2])) {
+                _this.paddle.velocity.x_component = 0;
+                _this.paddle.position.x_component = _this.canvas.width - 105;
+            }
+            _this.ball.move();
+            _this.paddle.move();
+            if (_this.lives > 0) {
+                requestAnimationFrame(_this.run);
+            }
+        };
+        this.keyDownHandler = function (e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                _this.paddle.velocity = new Vector2(7, 0);
+            }
+            else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                _this.paddle.velocity = new Vector2(-7, 0);
+            }
+        };
+        this.keyUpHandler = function (e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                if (_this.paddle.velocity.x > 0) {
+                    _this.paddle.velocity = new Vector2(0, 0);
+                }
+            }
+            else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                if (_this.paddle.velocity.x < 0) {
+                    _this.paddle.velocity = new Vector2(0, 0);
+                }
+            }
+        };
+        this.canvas = document.getElementById('myCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.paddle = new Paddle(this.canvas.width / 2 - 50, this.canvas.height - 12, 100, 10, 0, 0, "#ffffee");
+        this.ball = new Ball(this.canvas.width / 2 - 5, this.canvas.height - 25, 10, 2, 2, "#ffbad2");
+        var brickBounds = [25, 25, this.canvas.width - 25, this.canvas.height / 2 - 25];
+        this.brickWall = new BrickWall(4, 12, brickBounds);
+        this.canvasBounds = [
+            new Sprite(-100, -100, 100, this.canvas.height + 100, 'none'),
+            new Sprite(-100, -100, this.canvas.width + 100, 100, 'none'),
+            new Sprite(this.canvas.width, -100, 100, this.canvas.height + 100, 'none'),
+            new Sprite(-100, this.canvas.height, this.canvas.width + 100, 100, 'none')
+        ];
+        this.lives = 1;
     }
-    if (paddle.checkCollision(canvasBounds[2])) {
-        paddle.velocity.x_component = 0;
-        paddle.position.x_component = canvas.width - 105;
-    }
-    ball.move();
-    paddle.move();
-    console.log(paddle.velocity.x);
-    if (lives > 0) {
-        requestAnimationFrame(run);
-    }
-}
-function keyDownHandler(e) {
-    if (e.key === 'Right' || e.key === 'ArrowRight') {
-        paddle.velocity = new Vector2(7, 0);
-    }
-    else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-        paddle.velocity = new Vector2(-7, 0);
-    }
-}
-function keyUpHandler(e) {
-    if (e.key === 'Right' || e.key === 'ArrowRight') {
-        if (paddle.velocity.x > 0) {
-            paddle.velocity = new Vector2(0, 0);
-        }
-    }
-    else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-        if (paddle.velocity.x < 0) {
-            paddle.velocity = new Vector2(0, 0);
-        }
-    }
-}
-document.addEventListener('keydown', keyDownHandler, false);
-document.addEventListener('keyup', keyUpHandler, false);
-initializeBricks();
-run();
-//# sourceMappingURL=breakout.js.map
+    return BreakoutGame;
+}());
+var game = new BreakoutGame();
+document.addEventListener('keydown', game.keyDownHandler, false);
+document.addEventListener('keyup', game.keyUpHandler, false);
+game.run();
